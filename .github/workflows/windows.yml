@@ -31,10 +31,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pyinstaller openpyxl websocket-client
 
-      - name: 打 exe
+      - name: 打 exe（文件名一律 ASCII，中文名在 Windows runner 上会被吞掉）
         run: |
           python -m PyInstaller --noconfirm --clean --noconsole `
-            --name "配送运营助手" `
+            --name "DispatchWorkbench" `
             --icon "assets\icon.ico" `
             --add-data "assets;assets" `
             --hidden-import openpyxl --hidden-import websocket `
@@ -42,8 +42,8 @@ jobs:
 
       - name: 压缩
         run: |
-          Compress-Archive -Path "dist\配送运营助手" -DestinationPath "配送运营助手-Windows版.zip" -Force
-          Get-Item "配送运营助手-Windows版.zip" | Format-List Name,Length
+          Compress-Archive -Path "dist\DispatchWorkbench" -DestinationPath "DispatchWorkbench-Windows.zip" -Force
+          Get-Item "DispatchWorkbench-Windows.zip" | Format-List Name,Length
 
       - name: 发布 release
         uses: softprops/action-gh-release@v2
@@ -51,4 +51,4 @@ jobs:
           tag_name: ${{ github.event.inputs.version || github.ref_name }}
           name: 配送运营助手 Windows ${{ github.event.inputs.version || github.ref_name }}
           fail_on_unmatched_files: true
-          files: 配送运营助手-Windows版.zip
+          files: DispatchWorkbench-Windows.zip
