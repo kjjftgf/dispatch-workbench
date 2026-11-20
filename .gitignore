@@ -17,3 +17,8 @@ tools/package-lock.json
 
 # 系统垃圾
 .DS_Store
+
+# 打包产物与构建环境
+dist/
+build-tmp/
+.venv-build/
