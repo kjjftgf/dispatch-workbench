@@ -43,10 +43,21 @@ def _port_in_use_by_dir(cdp_dir):
     修复 2026-11-05 端口漂移：进程重启时若原端口仍被自己的 Chrome 占着，
     _pick_free_port 会另挑新端口 → 连不上已登录的旧实例，看板/播报全部判定「登录失效」。
     复用同一 user-data-dir 的既有实例（登录态也一起复用）。"""
-    try:
-        out = os.popen(f"ps -axo args | grep -F -- '--user-data-dir={cdp_dir}' | grep -v grep").read()
-    except Exception:
-        return None
+    if sys.platform == 'win32':
+        # Windows 没有 ps -axo，用 CIM 查命令行（wmic 在新系统已废弃）
+        try:
+            ps = ("Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "
+                  f"'*--user-data-dir={cdp_dir}*' }} | Select-Object -ExpandProperty CommandLine")
+            nr = subprocess.run(['powershell', '-NoProfile', '-Command', ps],
+                                capture_output=True, text=True, timeout=30, **_no_window_kw())
+            out = nr.stdout or ''
+        except Exception:
+            return None
+    else:
+        try:
+            out = os.popen(f"ps -axo args | grep -F -- '--user-data-dir={cdp_dir}' | grep -v grep").read()
+        except Exception:
+            return None
     for line in out.splitlines():
         for tok in line.split():
             if tok.startswith('--remote-debugging-port='):
@@ -770,13 +781,49 @@ def app_base_dir():
             d = Path.home() / 'Library' / 'Application Support' / '配送运营助手'
             d.mkdir(parents=True, exist_ok=True)
             return d
-        return exe.parent
+        # Windows：优先 exe 旁边（解压到桌面/D盘都能写）；只读目录（如 Program Files）退回 LOCALAPPDATA
+        d = exe.parent
+        try:
+            probe = d / '.write_test'
+            probe.write_text('1', encoding='utf-8')
+            probe.unlink()
+            return d
+        except Exception:
+            alt = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / '配送运营助手'
+            alt.mkdir(parents=True, exist_ok=True)
+            print(f'⚠️ 程序目录不可写，数据改放：{alt}')
+            return alt
     return Path(__file__).resolve().parent.parent  # cdp_core.py 在 modules/ 下
 
 
 def data_dir():
     """可写数据目录（看板/临时文件放这里，打包后放 exe 旁边）"""
     return app_base_dir() / 'data'
+
+
+def _pids_listening_on(port):
+    """返回本机监听该端口的 PID 列表（Windows 用 netstat -ano 解析；其他平台用 lsof）。
+
+    ⚠️ 只返回该端口的 PID —— 绝不要把 netstat 里所有 LISTENING 行都拿去杀。
+    """
+    pids = []
+    try:
+        if sys.platform == 'win32':
+            nr = subprocess.run(['netstat', '-ano'], capture_output=True, text=True,
+                                timeout=30, **_no_window_kw())
+            suf = ':' + str(port)
+            for line in (nr.stdout or '').splitlines():
+                parts = line.split()
+                # TCP  0.0.0.0:9224  0.0.0.0:0  LISTENING  12345
+                if len(parts) >= 5 and parts[-2].upper() == 'LISTENING' and parts[1].endswith(suf):
+                    if parts[-1].isdigit():
+                        pids.append(int(parts[-1]))
+        else:
+            out = os.popen(f'lsof -ti:{port} -sTCP:LISTEN 2>/dev/null').read().split()
+            pids = [int(x) for x in out if x.isdigit()]
+    except Exception:
+        return []
+    return pids
 
 
 def cleanup_chrome(started_by_me):
@@ -789,18 +836,22 @@ def cleanup_chrome(started_by_me):
     except Exception:
         pass
     if sys.platform == 'win32':
-        # 按 9223 端口找 PID 杀（WINDOWTITLE 过滤对 headless 实例不可靠，匹配不到）
+        # ⚠️ 2026-11-20 修：必须按「本项目调试端口」过滤。
+        #    老代码把 netstat 里所有 LISTENING 行的 PID 全 taskkill 掉
+        #    —— 在 Windows 上等于杀掉机器上所有在监听的程序（灾难级）。
         try:
-            nr = subprocess.run(['netstat', '-ano'], capture_output=True, text=True, timeout=30, **_no_window_kw())
-            out = nr.stdout or ''
-            pids = set()
-            for line in out.splitlines():
-                if 'LISTENING' in line:
-                    parts = line.split()
-                    if len(parts) >= 5:
-                        pids.add(parts[-1])
-            for p in pids:
-                subprocess.run(['taskkill', '/F', '/PID', str(p)], capture_output=True, **_no_window_kw())
+            for pid in _pids_listening_on(CDP_PORT):
+                subprocess.run(['taskkill', '/F', '/PID', str(pid)],
+                               capture_output=True, **_no_window_kw())
+            time.sleep(1)
+            for lock in ('SingletonLock', 'SingletonSocket', 'SingletonCookie'):
+                for suffix in ('', '.link'):
+                    lp = os.path.join(CDP_DIR, lock + suffix)
+                    try:
+                        if os.path.exists(lp):
+                            os.remove(lp)
+                    except Exception:
+                        pass
         except Exception:
             pass
     else:
