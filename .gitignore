@@ -1,0 +1,19 @@
+# 运行产物与本地私有数据 —— 一律不入库
+data/*
+!data/kpi_targets.example.json
+!data/.gitkeep
+
+# 浏览器调试目录 / 日志
+*.log
+__pycache__/
+*.pyc
+.chrome-debug/
+.dispatch_assistant_chrome/
+.dispatch_assistant_app_chrome/
+
+# node 依赖（tools/ 里 npm i 生成）
+tools/node_modules/
+tools/package-lock.json
+
+# 系统垃圾
+.DS_Store

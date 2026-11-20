@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>质量目标 · 月度目标值</title>
+<style>
+:root{
+  --bg:#070b14; --card:rgba(255,255,255,.045); --card2:rgba(255,255,255,.028);
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.06);
+  --ink:#eaf1ff; --ink2:#9aabc4; --ink3:#62718a;
+  --cyan:#3ddcff; --violet:#7c5cff; --ok:#22d3a5; --low:#ffa53d; --warn:#ff4d8d;
+  --ok-bg:rgba(34,211,165,.13); --warn-bg:rgba(255,77,141,.15); --low-bg:rgba(255,165,61,.13);
+  --shadow:0 18px 46px rgba(0,0,0,.48);
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);-webkit-font-smoothing:antialiased;background:var(--bg);
+  background-image:
+    radial-gradient(1100px 640px at 6% -12%,rgba(61,220,255,.16),transparent 60%),
+    radial-gradient(980px 600px at 94% -6%,rgba(124,92,255,.20),transparent 58%),
+    radial-gradient(760px 520px at 50% 112%,rgba(255,77,141,.10),transparent 62%);
+  background-attachment:fixed;
+  font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif}
+.wrap{padding:20px 34px 26px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+  backdrop-filter:blur(14px);overflow:hidden}
+.card-hd{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  padding:14px 20px;border-bottom:1px solid var(--line2);
+  background:linear-gradient(180deg,rgba(255,255,255,.035),transparent)}
+.card-hd h2{margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px}
+.card-hd h2 .mk{width:3px;height:15px;border-radius:2px;background:linear-gradient(180deg,var(--cyan),var(--violet))}
+.card-hd .note{font-size:12.5px;color:var(--ink3)}
+.card-hd .note b{color:var(--ink2);font-weight:600}
+.ops{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{appearance:none;font:inherit;font-size:12.5px;padding:6px 12px;border-radius:9px;cursor:pointer;
+  border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--ink2);white-space:nowrap}
+.btn:hover{color:var(--ink);border-color:rgba(255,255,255,.24)}
+.btn.primary{border-color:transparent;background:linear-gradient(96deg,var(--cyan),var(--violet));
+  color:#04121c;font-weight:700}
+.card-bd{padding:16px 20px 18px}
+
+.msg{margin:0 0 12px;font-size:13px;padding:9px 12px;border-radius:10px;display:none}
+.msg.show{display:block}
+.msg.ok{background:var(--ok-bg);color:#7ff0cd;border:1px solid rgba(34,211,165,.30)}
+.msg.now{background:rgba(61,220,255,.10);color:var(--cyan);border:1px solid rgba(61,220,255,.28)}
+.msg.bad{background:var(--warn-bg);color:#ffa8c4;border:1px solid rgba(255,77,141,.32)}
+
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:1180px}
+thead th{background:rgba(255,255,255,.05);color:var(--ink2);font-weight:600;font-size:12px;
+  padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap;text-align:right;
+  position:sticky;top:0;backdrop-filter:blur(8px)}
+thead th:first-child{text-align:left}
+thead tr.grp th{font-size:11.5px;color:var(--ink3);letter-spacing:.3px;padding-bottom:2px;
+  border-bottom:0;background:transparent;position:static;text-align:center}
+thead tr.grp th:first-child{text-align:left}
+thead th.g1{color:var(--cyan)}
+tbody td{padding:9px 10px;border-bottom:1px solid var(--line2);text-align:right;
+  font-variant-numeric:tabular-nums;color:var(--ink)}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover{background:rgba(255,255,255,.03)}
+tbody td.sc{text-align:left;font-weight:600;white-space:nowrap;color:var(--ink2)}
+tbody td.dim{color:var(--ink3)}
+.foot{margin-top:12px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  font-size:12.5px;color:var(--ink3)}
+.foot b{color:var(--ink2);font-weight:600}
+@media(max-width:900px){ .wrap{padding:14px 14px 22px} .card-bd{padding:12px 14px} }
+</style></head>
+<body><div class="wrap">
+
+  <section class="card">
+    <div class="card-hd">
+      <h2><i class="mk"></i>质量目标值 · 月度上传</h2>
+      <div class="note" id="src">读取中…</div>
+      <div class="ops">
+        <input type="file" id="file" accept=".xlsx,.xls" style="display:none">
+        <button class="btn primary" id="up">上传 Excel 更新</button>
+        <button class="btn" id="tpl">下载模板</button>
+        <button class="btn" id="rf">刷新</button>
+      </div>
+    </div>
+    <div class="card-bd">
+      <div class="msg" id="msg"></div>
+      <div class="tblwrap"><table><thead id="th"></thead><tbody id="tb"><tr><td style="text-align:left;color:#62718a;padding:14px">读取中…</td></tr></tbody></table></div>
+      <div class="foot">
+        <div><b>口径</b> 八个场景（周中/周末 × 正常/雨/雪/恶劣天气）× 四项指标 × 0/60/100 分档</div>
+        <div><b>生效</b> 上传后看板「服务质量KPI」板块即时生效</div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+var LABELS=[['delivery','物流妥投'],['t8','考核准时率'],['complaint','不满意率'],['overtime','复合超时']];
+var TIERS=[0,60,100];
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function val(g,v){
+  if(v==null||v==='') return '—';
+  if(g==='overtime') return String(v);
+  var p=Number(v)*100;
+  if(!isFinite(p)) return String(v);
+  return p.toFixed(6).replace(/0+$/,'').replace(/\.$/,'')+'%';
+}
+function msg(t,cls){ var m=document.getElementById('msg'); m.className='msg show '+(cls||'now'); m.innerHTML=t; }
+
+function render(targets){
+  var scs=Object.keys(targets||{});
+  var g='<tr class="grp"><th>场景分层</th>';
+  LABELS.forEach(function(L){ g+='<th class="g1" colspan="3">'+esc(L[1])+'</th>'; });
+  g+='</tr><tr><th></th>';
+  LABELS.forEach(function(){ TIERS.forEach(function(p){ g+='<th>'+p+'分</th>'; }); });
+  g+='</tr>';
+  document.getElementById('th').innerHTML=g;
+
+  var b='';
+  scs.forEach(function(sc){
+    b+='<tr><td class="sc">'+esc(sc)+'</td>';
+    LABELS.forEach(function(L){
+      var gg=(targets[sc]||{})[L[0]]||{};
+      TIERS.forEach(function(p){
+        var v=val(L[0], gg['t'+p]);
+        b+='<td class="'+(v==='—'?'dim':'')+'">'+esc(v)+'</td>';
+      });
+    });
+    b+='</tr>';
+  });
+  document.getElementById('tb').innerHTML=b||'<tr><td style="text-align:left;color:#62718a;padding:14px">没有数据</td></tr>';
+  var now=new Date();
+  document.getElementById('src').innerHTML='共 <b>'+scs.length+'</b> 个场景 · '+
+    ('0'+now.getHours()).slice(-2)+':'+('0'+now.getMinutes()).slice(-2)+' 读取'+
+    (scs.length<8?'　<span style="color:#ffa53c">⚠️ 只有 '+scs.length+' 个场景，请重新上传完整表</span>':'');
+}
+
+function load(){
+  fetch('api/kpi_targets',{cache:'no-store'})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(!d||!d.ok||!d.targets) throw new Error((d&&d.err)||'接口无数据');
+      render(d.targets);
+    })
+    .catch(function(e){
+      document.getElementById('tb').innerHTML='<tr><td style="text-align:left;color:#ff4d8d;padding:14px">读取失败：'+esc(e.message||e)+'（看板程序需为最新版）</td></tr>';
+      document.getElementById('src').textContent='接口异常';
+    });
+}
+
+document.getElementById('rf').onclick=load;
+document.getElementById('up').onclick=function(){ document.getElementById('file').click(); };
+document.getElementById('tpl').onclick=function(){ location.href='api/kpi_template'; };
+document.getElementById('file').onchange=function(el){
+  var f=el.files&&el.files[0]; if(!f) return;
+  msg('正在上传解析 '+esc(f.name)+' …','now');
+  fetch('api/kpi_targets/upload',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:f})
+    .then(function(r){return r.json();})
+    .then(function(d){
+      if(d&&d.ok){
+        var short=(d.count&&d.count<8)?('　⚠️ 只解析到 '+d.count+' 个场景（少于 8）——请用「下载模板」改值后再传'):'';
+        msg('已更新 '+(d.count||'?')+' 个场景'+(d.msg?(' · '+esc(d.msg)):'')+short, short?'bad':'ok');
+        load();
+      } else { msg('上传失败：'+esc((d&&(d.err||d.msg))||'未知错误'),'bad'); }
+    })
+    .catch(function(e){ msg('上传失败：'+esc(e.message||e),'bad'); });
+  el.value='';
+};
+
+load();
+</script>
+</body></html>

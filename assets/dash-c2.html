@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>配送站点 · 值班屏</title>
+<style>
+:root{
+  --bg:#070b14;
+  --card:rgba(255,255,255,.045); --card2:rgba(255,255,255,.028);
+  --line:rgba(255,255,255,.10); --line2:rgba(255,255,255,.06);
+  --ink:#eaf1ff; --ink2:#9aabc4; --ink3:#62718a;
+  --cyan:#3ddcff; --violet:#7c5cff; --ok:#22d3a5; --low:#ffa53d; --warn:#ff4d8d;
+  --ok-bg:rgba(34,211,165,.13); --warn-bg:rgba(255,77,141,.15); --low-bg:rgba(255,165,61,.13);
+  --warn-glow:rgba(255,77,141,.30); --shadow:0 18px 46px rgba(0,0,0,.48);
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--ink);-webkit-font-smoothing:antialiased;background:var(--bg);
+  background-image:
+    radial-gradient(1100px 640px at 6% -12%,rgba(61,220,255,.16),transparent 60%),
+    radial-gradient(980px 600px at 94% -6%,rgba(124,92,255,.20),transparent 58%),
+    radial-gradient(760px 520px at 50% 112%,rgba(255,77,141,.10),transparent 62%);
+  background-attachment:fixed;
+  font:15px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif}
+.wrap{padding:20px 34px 24px}
+body.embed .ident{display:none}
+body.embed .wrap{padding:14px 24px 20px}
+
+.ident{display:flex;align-items:center;justify-content:space-between;gap:20px;
+  padding-bottom:16px;border-bottom:1px solid var(--line)}
+.ident .l{display:flex;align-items:baseline;gap:14px}
+.ident h1{margin:0;font-size:26px;font-weight:800;letter-spacing:.2px}
+.ident .sep{width:1px;height:18px;background:var(--line);align-self:center}
+.ident .meta{font-size:13.5px;color:var(--ink2)}
+.ident .r{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink2);flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;
+  padding:5px 12px;background:rgba(255,255,255,.03);font-variant-numeric:tabular-nums}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.pill.stale .dot{background:var(--low);box-shadow:0 0 10px var(--low)}
+.seg-pill{border:1px solid var(--line);border-radius:8px;padding:5px 10px;background:rgba(255,255,255,.03)}
+
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:16px}
+.kpi{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;
+  padding:15px 18px 13px;box-shadow:var(--shadow);backdrop-filter:blur(14px);overflow:hidden}
+.kpi::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent)}
+.kpi .k{font-size:13px;color:var(--ink2);display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kpi .k .tag{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:6px;white-space:nowrap}
+.kpi .v{font-size:38px;font-weight:800;line-height:1.05;margin:7px 0 3px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.kpi .v small{font-size:16px;font-weight:700;color:var(--ink2);margin-left:5px;letter-spacing:0}
+.kpi .s{font-size:13px;color:var(--ink3)}
+.kpi.bad{border-color:rgba(255,77,141,.34)} .kpi.bad .v{color:var(--warn)}
+.kpi.warnc{border-color:rgba(255,165,61,.30)} .kpi.warnc .v{color:var(--low)}
+.kpi.good .v{color:var(--ok)}
+.kpi.grad .v{background:linear-gradient(96deg,#3ddcff,#7c5cff 92%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{background:rgba(255,255,255,.06);color:var(--ink2);border:1px solid rgba(255,255,255,.10)}
+.tag.warn{background:var(--warn-bg);color:var(--warn);border-color:transparent}
+.tag.ok{background:var(--ok-bg);color:var(--ok);border-color:transparent}
+.tag.low{background:var(--low-bg);color:var(--low);border-color:transparent}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.tag.low{background:var(--low-bg);color:var(--low)}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);
+  backdrop-filter:blur(14px);overflow:hidden}
+.card-hd{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px 20px;border-bottom:1px solid var(--line2);
+  background:linear-gradient(180deg,rgba(255,255,255,.035),transparent)}
+.card-hd h2{margin:0;font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px}
+.card-hd h2 .mk{width:3px;height:15px;border-radius:2px;background:linear-gradient(180deg,var(--cyan),var(--violet))}
+.card-hd .note{font-size:12.5px;color:var(--ink3)}
+.card-hd .ops{display:flex;gap:8px}
+.op{font-size:12px;color:var(--ink2);border:1px solid var(--line);border-radius:7px;padding:3px 9px;
+  background:rgba(255,255,255,.03);cursor:pointer;text-decoration:none}
+.op:hover{color:var(--ink);border-color:rgba(255,255,255,.22)}
+.card-bd{padding:15px 18px 15px}
+
+.segs{display:grid;grid-template-columns:repeat(9,1fr);gap:9px}
+.seg{border:1px solid var(--line);border-radius:12px;padding:8px 9px;background:var(--card2);position:relative}
+.seg .nm{font-size:12.5px;font-weight:600;color:var(--ink2)}
+.seg .tm{font-size:11px;color:var(--ink3);font-variant-numeric:tabular-nums}
+.seg .pc{font-size:16px;font-weight:800;margin-top:5px;font-variant-numeric:tabular-nums}
+.seg .cap{font-size:11px;color:var(--ink3);margin-top:1px}
+.seg .bar{position:relative;height:5px;border-radius:3px;background:rgba(255,255,255,.09);margin-top:7px}
+.seg .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--ok),#6ee7c4)}
+.seg .bar b{position:absolute;top:-2px;bottom:-2px;width:1px;background:rgba(255,255,255,.45)}
+.seg .bar u{position:absolute;top:-3px;bottom:-3px;width:2px;border-radius:2px;
+  background:rgba(61,220,255,.9);box-shadow:0 0 7px rgba(61,220,255,.75)}
+.seg .bar s{position:absolute;left:0;top:0;bottom:0;border-radius:3px;
+  background:repeating-linear-gradient(90deg,rgba(61,220,255,.30) 0 6px,rgba(61,220,255,.13) 6px 12px)}
+.seg .cap.pulse{color:var(--cyan)}
+.seg .cap.pulse em{font-style:normal;font-variant-numeric:tabular-nums}
+.seg.ok .pc{color:var(--ok)} .seg.ok{border-color:rgba(34,211,165,.28)}
+.seg.low .pc{color:var(--low)} .seg.low{border-color:rgba(255,165,61,.30)}
+.seg.low .bar i{background:linear-gradient(90deg,var(--low),#ffd08a)}
+.seg.now{border-color:var(--cyan);background:linear-gradient(180deg,rgba(61,220,255,.13),rgba(61,220,255,.04));
+  animation:breathe 3.4s ease-in-out infinite}
+.seg.now .pc,.seg.now .nm{color:var(--cyan)}
+.seg.now .bar i{background:linear-gradient(90deg,var(--cyan),#9be9ff)}
+@keyframes breathe{0%,100%{box-shadow:0 0 0 2px rgba(61,220,255,.20)}50%{box-shadow:0 0 0 3px rgba(61,220,255,.32)}}
+.seg.future{opacity:.62} .seg.future .pc{color:var(--ink3)}
+
+.chart{margin-top:12px;padding-top:12px;border-top:1px solid var(--line2)}
+.chart .lh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.chart .lh b{font-size:13.5px}
+.chart .lh span{font-size:12px;color:var(--ink3)}
+.chart svg{width:100%;height:auto;aspect-ratio:1400/214;display:block}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+.rows{display:flex;flex-direction:column}
+.row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line2);font-size:14px}
+.row:last-child{border-bottom:0}
+.row span{color:var(--ink2)}
+.row b{font-variant-numeric:tabular-nums;font-weight:700}
+.row b.hot{color:var(--warn)} .row b.good{color:var(--ok)}
+.ev{display:flex;gap:12px;padding:9px 0;border-top:1px solid var(--line2)}
+.ev:first-child{border-top:0;padding-top:0}
+.ev .tm{width:50px;flex:none;font-size:12.5px;color:var(--ink3);font-variant-numeric:tabular-nums;padding-top:2px}
+.ev .bd{flex:1;font-size:14px}
+.ev .bd b{font-weight:700}
+.ev .bd span{display:block;font-size:12.5px;color:var(--ink2);margin-top:2px}
+
+.foot{margin-top:10px;display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;
+  font-size:12.5px;color:var(--ink3);border-top:1px solid var(--line);padding-top:12px}
+.foot b{color:var(--ink2);font-weight:600}
+
+@media(max-width:1180px){ .segs{grid-template-columns:repeat(5,1fr)} .kpi .v{font-size:34px} }
+@media(max-width:900px){
+  .wrap{padding:14px 14px 22px}
+  .ident{flex-direction:column;align-items:flex-start;gap:8px}
+  .kpis{grid-template-columns:1fr;gap:10px}
+  .cols{grid-template-columns:1fr}
+  .segs{grid-template-columns:repeat(3,1fr);gap:8px}
+  .chart{display:none}
+}
+@media(max-width:520px){ .segs{grid-template-columns:repeat(2,1fr)} .ident h1{font-size:21px} }
+</style></head>
+<body><div class="wrap">
+
+  <div class="ident">
+    <div class="l"><h1 id="site">读取中…</h1><div class="sep"></div><div class="meta" id="identMeta">读取中…</div></div>
+    <div class="r">
+      <span class="seg-pill" id="curShift">—</span>
+      <span class="pill" id="livePill"><i class="dot"></i><span id="liveTxt">读取中…</span></span>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi bad" id="kpiGap">
+      <div class="k">运力缺口 <span class="tag warn" id="gapTag">—</span></div>
+      <div class="v" id="gapV">—</div>
+      <div class="s" id="gapS">—</div>
+    </div>
+    <div class="kpi grad" id="kpiRate">
+      <div class="k">时段达标率（加权） <span class="tag">门槛 95.0%</span></div>
+      <div class="v" id="rateV">—</div>
+      <div class="s" id="rateS">—</div>
+    </div>
+    <div class="kpi warnc" id="kpiFail">
+      <div class="k">未达标骑手 <span class="tag low" id="failTag">—</span></div>
+      <div class="v" id="failV">—</div>
+      <div class="s">在线但没到 6 小时 / 18 单</div>
+    </div>
+  </div>
+
+  <section class="card" style="margin-top:14px">
+    <div class="card-hd">
+      <h2><i class="mk"></i>今天的时间轴</h2>
+      <div class="note" id="bandNote">—</div>
+      <div class="ops"><a class="op" href="index.html?embed=1" target="_top">看明细</a></div>
+    </div>
+    <div class="card-bd">
+      <div class="segs" id="segs"></div>
+      <div class="chart">
+        <div class="lh"><b>九段达标率走势</b><span>Y 轴随实际值自适应（非 0 起）· 虚线＝95% 门槛 · 空心圈＝还没跑</span></div>
+        <div id="chartBox"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <section class="card">
+      <div class="card-hd"><h2><i class="mk"></i>翻盘还要多少</h2><div class="note">门槛 95%</div></div>
+      <div class="card-bd rows" id="calc"></div>
+    </section>
+    <section class="card">
+      <div class="card-hd"><h2><i class="mk"></i>从早到晚</h2><div class="note">只列会变的东西</div></div>
+      <div class="card-bd" id="events"></div>
+    </section>
+  </div>
+
+  <div class="foot">
+    <div><b>站点</b> <span id="footSite">—</span> · <b>TID</b> <span id="footTid">—</span></div>
+    <div><b>数据源</b> Aeolus 看板（60 秒自动刷新）· 快照 <span id="footTs">—</span></div>
+    <div><b>口径</b> 时段达标率＝全时段加权（门槛 95%）· 缺口＝应排 − 实出</div>
+  </div>
+</div>
+
+<script>
+var SHIFTS=[["凌晨1","00:00"],["早餐1","06:00"],["早餐2","08:00"],["午高峰","10:30"],
+            ["下午茶1","13:30"],["下午茶2","15:30"],["晚高峰","17:30"],["夜宵1","20:00"],["夜宵2","22:00"]];
+var ST={names:[],rate:[],ongoing:[],agg:'—',aggNote:'',gap:{},gapTxt:'',failN:null,att:null,fee:null,
+        dt:'',curShift:'',vSub:'',tid:0,prevRate:null};
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function num(s){var m=String(s==null?'':s).replace(/[,\s]/g,'').match(/-?[\d.]+/);return m?Number(m[0]):null;}
+function hhmm(s){return s?s.slice(11,19)||s:'';}
+
+function parse(html){
+  var doc=new DOMParser().parseFromString(html,'text/html');
+  var root=doc.querySelector('.site-block')||doc;
+  var sb=doc.querySelector('.site-block[data-tid]'); if(sb){
+    ST.tid=parseInt(sb.dataset.tid||'0',10);
+    var nm=doc.querySelector('.site-block .site-name, .site-block h2');
+    if(nm&&nm.textContent.trim()) document.getElementById('site').textContent=nm.textContent.trim();
+  }
+  var dt=doc.querySelector('.dt-badge'); ST.dt=dt?dt.textContent.replace(/^[^0-9]*/,''):'';
+  var m2=doc.querySelector('.site-hd .meta2'); ST.curShift=m2?m2.textContent.replace('当前时段：','').trim():'';
+
+  /* 时段名 + 进行中标记 */
+  ST.names=[]; ST.ongoing=[];
+  root.querySelectorAll('.pvlink').forEach(function(b){
+    ST.names.push(b.childNodes[0].textContent.trim());
+    ST.ongoing.push((b.dataset.ongoing||'0')==='1');
+  });
+  /* 时段表 */
+  var rows={};
+  root.querySelectorAll('.pvtable tbody tr').forEach(function(tr){
+    var lab=tr.querySelector('.pvlabel'); if(!lab) return;
+    var vals=[]; tr.querySelectorAll('td').forEach(function(td,i){ if(i>0) vals.push(td.textContent.trim()); });
+    rows[lab.textContent.trim()]=vals;
+  });
+  ST.rate=(rows['达标率']||[]).map(function(x){return num(x);});
+  ST.should=rows['应排目标']||[]; ST.sched=rows['实排目标']||[]; ST.pass=rows['达标骑手']||[];
+
+  var ag=root.querySelector('.aggr b'); ST.agg=ag?ag.textContent.trim():'—';
+  var sp=root.querySelectorAll('.aggr span'); ST.aggNote=sp.length?sp[0].textContent.trim():'';
+
+  /* 缺口四卡 */
+  ST.gap={}; ST.gapTxt='';
+  root.querySelectorAll('.gapcard').forEach(function(c){
+    var k=c.querySelector('.k'),v=c.querySelector('.v'),n=c.querySelector('.gapn');
+    if(!k||!v) return;
+    if(n){ST.gapTxt=n.textContent.replace('缺口','').trim(); n.remove();}
+    ST.gap[k.textContent.trim()]=num(v.textContent);
+  });
+  /* 未达标人数 */
+  ST.failN=null; var fdh=root.querySelector('.faildet-hd');
+  if(fdh){var m=fdh.textContent.match(/（\s*(\d+)\s*人）/); if(m) ST.failN=Number(m[1]);}
+  /* 出勤率 / 服务费 */
+  var vm=root.querySelector('.verdict .v-main'), vs=root.querySelector('.verdict .v-sub');
+  ST.vSub=vs?vs.textContent.replace(/\s+/g,' ').trim():'';
+  var t=vm?vm.textContent.replace(/\s+/g,' '):''; var ma=t.match(/出勤率\s*([\d.]+)%/); ST.att=ma?Number(ma[1]):null;
+  var jd=root.querySelector('.judge'), jt=jd?jd.textContent.replace(/\s+/g,' '):'';
+  var mj=jt.match(/达标\s*(\d+)\s*人/); ST.passN=mj?Number(mj[1]):null;
+  var mk=jt.match(/门槛\s*(\d+)\s*人/); ST.needN=mk?Number(mk[1]):null;
+  var fb=root.querySelector('.feebar'), ft=fb?fb.textContent.replace(/\s+/g,' '):'';
+  var mf=ft.match(/达成率\s*([\d.]+)%/); ST.fee=mf?Number(mf[1]):null;
+}
+
+function toMin(hhmm){var p=String(hhmm||'0:0').split(':');return (+p[0])*60+(+p[1]||0);}
+function shiftState(i){
+  var d=new Date(), nowMin=d.getHours()*60+d.getMinutes();
+  var start=SHIFTS[i]?toMin(SHIFTS[i][1]):0;
+  var end=(i+1<SHIFTS.length&&SHIFTS[i+1])?toMin(SHIFTS[i+1][1]):24*60;
+  if(nowMin>=start&&nowMin<end) return 'now';
+  if(nowMin<start) return 'future';
+  var r=ST.rate[i];
+  return (r===null||r===undefined)?'future':(r>=95?'ok':'low');
+}
+
+function shiftWindow(i){
+  var start=SHIFTS[i]?toMin(SHIFTS[i][1]):0;
+  var end=(i+1<SHIFTS.length&&SHIFTS[i+1])?toMin(SHIFTS[i+1][1]):24*60;
+  return {start:start,end:end};
+}
+function nowMinF(){var d=new Date();return d.getHours()*60+d.getMinutes()+d.getSeconds()/60;}
+function hmStr(min){min=Math.max(0,Math.round(min));return Math.floor(min/60)+'小时'+(min%60)+'分钟';}
+function shiftElapsed(i){
+  var w=shiftWindow(i), n=nowMinF();
+  return Math.max(0,Math.min(1,(n-w.start)/(w.end-w.start)));
+}
+
+function renderSegs(){
+  var html='';
+  ST.names.forEach(function(nm,i){
+    var st=shiftState(i), r=ST.rate[i];
+    var pct=(r==null?0:Math.max(0,Math.min(100,r)));
+    var tm=SHIFTS[i]?SHIFTS[i][1]:'';
+    var cap = st==='now'?'进行中':(st==='future'?'未开始':(r>=95?(r>=100?'已结束':'刚压门槛'):'已结束'));
+    var extra='', bar='<i style="width:'+pct+'%"></i><b style="left:95%"></b>';
+    if(st==='now'){
+      var el=shiftElapsed(i), w=shiftWindow(i), rem=w.end-nowMinF();
+      cap='已过 '+Math.round(el*100)+'% · 剩 '+hmStr(rem);
+      extra=' pulse';
+      bar='<s style="width:'+(el*100).toFixed(1)+'%"></s><i style="width:'+pct+'%"></i>'
+         +'<b style="left:95%"></b><u style="left:'+(el*100).toFixed(1)+'%"></u>';
+    }
+    html+='<div class="seg '+st+'">'
+        + '<div class="nm">'+esc(nm)+'</div>'
+        + '<div class="tm">'+esc(tm)+'</div>'
+        + '<div class="pc">'+(r==null?'—':Number(r).toFixed(1)+'%')+'</div>'
+        + '<div class="cap'+extra+'">'+cap+'</div>'
+        + '<div class="bar">'+bar+'</div></div>';
+  });
+  document.getElementById('segs').innerHTML=html;
+  var done=ST.names.filter(function(_,i){var st=shiftState(i);return st==='ok'||st==='low';}).length;
+  var ok=ST.names.filter(function(_,i){var st=shiftState(i);return st==='ok';}).length;
+  document.getElementById('bandNote').textContent='已跑 '+done+' 段 · 达标 '+ok+' 段 · 门槛线 95%';
+}
+
+/* 折线：100%→顶部；底线随实际值自适应（最低值低于 40% 时下限下探，避免点画到画外） */
+function renderChart(){
+  var n=ST.names.length||9;
+  var W=1400, TOP=40, BOT=170, P100=100;
+  var _vals=ST.rate.filter(function(v){return v!=null&&!isNaN(v);});
+  var _lo=_vals.length?Math.min.apply(null,_vals):40;
+  var P40=Math.min(40, Math.max(0, Math.floor(_lo/10)*10-5));
+  var ticks=[P100,75,50]; if(P40<40){ticks.push(P40);}
+  function Y(pc){return (TOP+(P100-pc)*(BOT-TOP)/(P100-P40)).toFixed(1);}
+  var xs=[]; for(var i=0;i<n;i++){ xs.push(n===1?70:60+i*(1340-60)/(n-1)); }
+  var pts=[], lastRun=-1;
+  for(var i=0;i<n;i++){
+    var r=ST.rate[i];
+    if(r==null){ continue; }
+    pts.push([xs[i], Number(Y(r)), ST.names[i], r, i]);
+    lastRun=i;
+  }
+  if(!pts.length){ document.getElementById('chartBox').innerHTML='<div style="color:#62718a;font-size:13px;padding:12px 0">还没有时段数据</div>'; return; }
+  var line=pts.map(function(p,k){return (k?'L':'M')+p[0].toFixed(0)+','+p[1];}).join(' ');
+  var area=line+' L'+pts[pts.length-1][0].toFixed(0)+','+BOT+' L'+pts[0][0].toFixed(0)+','+BOT+' Z';
+  var gate=Number(Y(95));
+  var lowest=pts.reduce(function(a,b){return a[3]<=b[3]?a:b;});
+  var cur=pts[pts.length-1];
+
+  var dots=pts.map(function(p){
+    var isLow=(p===lowest&&lowest[3]<95), isCur=(p===cur);
+    var s='';
+    if(isLow){ s+='<circle cx="'+p[0].toFixed(0)+'" cy="'+p[1]+'" r="11" fill="none" stroke="#ffa53d" stroke-opacity=".45" stroke-width="1.6"/>'
+                 + '<circle cx="'+p[0].toFixed(0)+'" cy="'+p[1]+'" r="5" fill="#ffa53d"/>'; }
+    else if(isCur){ s+='<circle cx="'+p[0].toFixed(0)+'" cy="'+p[1]+'" r="14" fill="none" stroke="#ff4d8d" stroke-opacity=".45" stroke-width="2"/>'
+                      + '<circle cx="'+p[0].toFixed(0)+'" cy="'+p[1]+'" r="6" fill="#ff4d8d"/>'; }
+    else { s+='<circle cx="'+p[0].toFixed(0)+'" cy="'+p[1]+'" r="4" fill="#eaf1ff"/>'; }
+    return s;
+  }).join('');
+
+  var future='';
+  for(var i=lastRun+1;i<n;i++){
+    future+='<circle cx="'+xs[i].toFixed(0)+'" cy="164" r="4.6" fill="none" stroke="#4b5972" stroke-width="1.8"/>';
+  }
+  var labels=ST.names.map(function(nm,i){
+    var col=(i===lastRun)?'#ff4d8d':(ST.rate[i]==null?'#4b5972':(ST.rate[i]<95?'#ffa53d':'#9aabc4'));
+    var fw=(i===lastRun)?' font-weight="700"':'';
+    return '<text x="'+xs[i].toFixed(0)+'" y="200" fill="'+col+'"'+fw+'>'+esc(nm)+'</text>';
+  }).join('');
+
+  document.getElementById('chartBox').innerHTML=
+   '<svg viewBox="0 0 1400 214" preserveAspectRatio="none" role="img" aria-label="九段达标率走势">'
+   +'<defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3ddcff" stop-opacity=".26"/><stop offset="100%" stop-color="#3ddcff" stop-opacity="0"/></linearGradient>'
+   +'<linearGradient id="s" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#3ddcff"/><stop offset="100%" stop-color="#7c5cff"/></linearGradient></defs>'
+   +'<g stroke="rgba(255,255,255,.07)" stroke-width="1">'
+   +ticks.map(function(t){return '<line x1="46" y1="'+Y(t)+'" x2="1350" y2="'+Y(t)+'"/>';}).join('')+'</g>'
+   +'<g fill="#62718a" font-size="12" text-anchor="end">'
+   +ticks.map(function(t){return '<text x="40" y="'+(Number(Y(t))+4)+'">'+t+'%</text>';}).join('')+'</g>'
+   +'<line x1="46" y1="'+gate+'" x2="1350" y2="'+gate+'" stroke="#ff4d8d" stroke-width="1.4" stroke-dasharray="7 7" opacity=".8"/>'
+   +'<text x="52" y="'+(gate-9)+'" fill="#ff4d8d" font-size="12.5" font-weight="700">门槛 95%</text>'
+   +'<path d="'+area+'" fill="url(#f)"/>'
+   +'<path d="'+line+'" fill="none" stroke="url(#s)" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>'
+   +dots+future
+   +'<g fill="#9aabc4" font-size="13" text-anchor="middle">'+labels+'</g></svg>';
+}
+
+function renderKpi(){
+  var gapV=ST.gap['应排人数'], actV=ST.gap['活跃人数'], schedV=ST.gap['当天排班人数'], siteV=ST.gap['站点人数'];
+  var gap=ST.gapTxt||((gapV!=null&&actV!=null)?String(gapV-actV):'—');
+  document.getElementById('gapV').innerHTML=esc(gap)+'<small>人</small>';
+  document.getElementById('gapS').textContent='应排 '+(gapV==null?'—':gapV)+' · 排班 '+(schedV==null?'—':schedV)+' · 实出 '+(actV==null?'—':actV);
+  document.getElementById('gapTag').textContent=(Number(gap)>0?'低于应排':'已满');
+  document.getElementById('kpiGap').className='kpi '+(Number(gap)>0?'bad':'good');
+
+  var agg=num(ST.agg);
+  document.getElementById('rateV').innerHTML=(agg==null?'—':agg.toFixed(1))+'<small>%</small>';
+  var need=(ST.needN!=null?ST.needN:(gapV!=null?Math.round(gapV*0.95):null));
+  document.getElementById('rateS').textContent=(ST.passN!=null?'达标 '+ST.passN+' 人':'')+(need?' · 门槛 '+need+' 人':'');
+  document.getElementById('kpiRate').className='kpi '+(agg!=null&&agg>=95?'good':'bad');
+  document.getElementById('kpiRate').style.borderColor=agg!=null&&agg<95?'rgba(255,77,141,.34)':'';
+
+  var fn=ST.failN;
+  document.getElementById('failV').innerHTML=(fn==null?'—':fn)+'<small>人</small>';
+  document.getElementById('failTag').textContent=fn?'要跟':'无';
+  document.getElementById('kpiFail').className='kpi '+(fn?'warnc':'good');
+}
+
+function renderCalc(){
+  var rows=[], n=ST.names.length, done=0, ok=0, bads=[];
+  ST.names.forEach(function(nm,i){
+    var st=shiftState(i); if(st!=='ok'&&st!=='low') return;   /* 未开始/进行中都不算欠账 */
+    var r=ST.rate[i]; if(r==null) return;
+    done++; if(r>=95) ok++; else bads.push([nm,r]);
+  });
+  var agg=num(ST.agg);
+  var nowName=ST.names.filter(function(_,i){return shiftState(i)==='now';})[0];
+  var nowRate=null, nowIdx=-1;
+  ST.names.forEach(function(nm,i){ if(shiftState(i)==='now'){ nowRate=ST.rate[i]; nowIdx=i; }});
+  rows.push(['已跑完 '+done+' 段 · 达标','<b>'+(done?ok+' 段':'—')+'</b>']);
+  if(bads.length) rows.push([bads.length===1?'唯一没达标的已跑段':'没达标的已跑段（'+bads.length+' 段）',
+    '<b class="hot">'+bads.map(function(b){return esc(b[0])+' '+b[1]+'%';}).join(' · ')+'</b>']);
+  rows.push(['当前加权','<b class="'+(agg!=null&&agg<95?'hot':'good')+'">'+(agg==null?'—':agg.toFixed(1)+'%')+'</b>']);
+  var fut=ST.names.filter(function(_,i){return shiftState(i)==='future';});
+  if(fut.length) rows.push(['还没跑的段','<b>'+fut.map(esc).join(' · ')+'</b>']);
+  if(nowName) rows.push([nowName+'（进行中）','<b class="'+(nowRate!=null&&nowRate>=95?'good':'hot')+'">'+(nowRate==null?'已跑完待结算':nowRate+'% · 差 '+(95-nowRate).toFixed(1)+' 个点')+'</b>']);
+  rows.push(['后段要多少才够 95%','<b>按各段权重算</b>']);
+  document.getElementById('calc').innerHTML=rows.map(function(r){return '<div class="row"><span>'+r[0]+'</span>'+r[1]+'</div>';}).join('');
+}
+
+function renderEvents(){
+  var evs=[];
+  ST.names.forEach(function(nm,i){
+    var st=shiftState(i); if(st==='future') return;          /* 未开始的不进事件流 */
+    var r=ST.rate[i]; if(r==null) return;
+    var tm=SHIFTS[i]?SHIFTS[i][1]:'';
+    var tag = st==='now' ? '<i class="tag warn">进行中</i>' : (r>=95?'<i class="tag ok">过了</i>':'<i class="tag low">欠账</i>');
+    var say = st==='now' ? ('已跑到 '+Number(r).toFixed(1)+'%，门槛 95.0%') : (r>=95?'全段达标':'比门槛低 '+(95-r).toFixed(1)+' 个点');
+    evs.push({tm:tm,b:nm+' '+Number(r).toFixed(1)+'%',s:say,tag:tag,ord:i});
+  });
+  evs.reverse();
+  document.getElementById('events').innerHTML=evs.map(function(e){
+    return '<div class="ev"><div class="tm">'+esc(e.tm)+'</div><div class="bd"><b>'+esc(e.b)+'</b>'
+      +'<span>'+esc(e.s)+' '+e.tag+'</span></div></div>';
+  }).join('')||'<div style="color:#62718a;font-size:13px">暂无数据</div>';
+}
+
+function renderTop(){
+  var names=ST.names.length;
+  document.getElementById('identMeta').textContent=(ST.dt?ST.dt.slice(0,10):'')+
+    (ST.tid?' · TID '+ST.tid:'')+(ST.gap['应排人数']!=null?' · 应排 '+ST.gap['应排人数']:'')+
+    (ST.gap['站点人数']!=null?' · 在册 '+ST.gap['站点人数']:'');
+  document.getElementById('curShift').textContent=ST.curShift||'—';
+  document.getElementById('footTid').textContent=ST.tid||'—';
+  document.getElementById('footTs').textContent=ST.dt||'—';
+  var pill=document.getElementById('livePill');
+  pill.classList.remove('stale');
+  document.getElementById('liveTxt').textContent='看板 60 秒 · 数据 '+(ST.dt?ST.dt.slice(11):'—');
+}
+
+var lastOk=0;
+function stale(){ document.getElementById('livePill').classList.add('stale');
+  document.getElementById('liveTxt').textContent='读不到看板数据，60 秒后重试'; }
+
+function load(){
+  fetch('index.html?t='+Date.now(),{cache:'no-store'})
+    .then(function(r){return r.text();})
+    .then(function(h){
+      if(!h||h.length<500){ stale(); return; }
+      parse(h); lastOk=Date.now();
+      renderTop(); renderKpi(); renderSegs(); renderChart(); renderCalc(); renderEvents();
+    })
+    .catch(stale);
+}
+load();
+setInterval(load, 60000);
+/* 进行中时段的「已过时间 / 剩余」每 20 秒推进一次，不必等整页刷新 */
+setInterval(function(){ try{ renderSegs(); }catch(e){} }, 20000);
+</script>
+</body></html>
