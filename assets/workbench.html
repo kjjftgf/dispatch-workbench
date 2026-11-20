@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="zh-CN"><head>
+<link rel="icon" href="data:,"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>配送运营工作台 · C2</title>
 <style>
 :root{
@@ -280,7 +281,9 @@ function shList(){
         +'<button onclick="shCopy(\''+x.token+'\')">复制</button>'
         +'<button onclick="shRevoke(\''+x.token+'\')">撤销</button></div>';
     }).join('');
-    shEl('shList').innerHTML=rows||'<div class="shmsg" style="color:var(--ink3)">还没有生成过链接</div>';
+    var warn = d.base ? '' : '<div class="shmsg" style="color:#ffa53d">⚠️ 未配置公网地址：'
+      +'把对外地址写进 <code>data/share_base.txt</code>（如 frp 域名），否则链接只能在本机打开。</div>';
+    shEl('shList').innerHTML=warn+(rows||'<div class="shmsg" style="color:var(--ink3)">还没有生成过链接</div>');
   }).catch(function(){ shEl('shList').innerHTML='<div class="shmsg" style="color:#ff4d8d">网络错误</div>'; });
 }
 function shNew(){

@@ -49,7 +49,7 @@ BASE_HOURS, BASE_ORDERS = 6, 18  # 全天达成基准（标1）
 # 看板每轮刷新登记到此，查询时按 team_id 取；取不到填 None = 不做站点过滤（单站点导出的等价行为）
 _SITE_NAMES = {}
 
-APP_VERSION = 'v1.34'  # 与 main.py VERSION 同步（检测更新用）
+APP_VERSION = 'oss-1.0.0'  # 开源源码版自己的版本号（与 Gitee 安装包的 vX 序列不是一套）
 # ⚠️ 页面 CSS/JS 版本戳：改了页面 JS/CSS 必须递增 jsN —— fetchLatest 发现服务端版本与页面版本不一致
 #    就自动整页刷新，用户不再需要手动强制刷新（局部刷新只换 body，<script> 里的旧 JS 不会更新）
 BOARD_VER = APP_VERSION + '-js8'   # 2026-11-07 尖峰天贡献：明细加搜索框（searchSpike）→ 版本戳 +1 让已开的页面自动重载拿新 JS
@@ -3100,12 +3100,15 @@ button:active{{background:#1d4ed8}}
                 return
             try:
                 from modules import update_check
+                configured = bool(update_check.GITEE_OWNER and update_check.GITEE_REPO)
                 r = update_check.check_update(APP_VERSION, timeout=10)
                 if r:
                     tag, url = r
-                    self._send_json({'ok': True, 'current': APP_VERSION, 'latest': tag, 'url': url})
+                    self._send_json({'ok': True, 'current': APP_VERSION, 'latest': tag,
+                                     'url': url, 'configured': configured})
                 else:
-                    self._send_json({'ok': True, 'current': APP_VERSION, 'latest': None})
+                    self._send_json({'ok': True, 'current': APP_VERSION, 'latest': None,
+                                     'configured': configured})
             except Exception as e:
                 self._send_json({'ok': False, 'err': str(e)}, 500)
 
@@ -3351,6 +3354,12 @@ function checkUpdate() {
     .then(function(d){
       var m = document.getElementById('cu-msg');
       if (!d.ok) { m.textContent = '❌ ' + (d.err || '检查失败'); return; }
+      if (d.configured === false) {
+        m.innerHTML = 'ℹ️ 未配置更新源（开源版默认关闭）<br>'
+          + '<span style="font-size:12px;color:#9AABC4">当前版本 ' + d.current
+          + '；需要自动更新时设置环境变量 WORKBENCH_UPDATE_REPO=owner/repo 再启动</span>';
+        return;
+      }
       if (!d.latest || d.latest === d.current) {
         m.innerHTML = '✅ 当前已是最新版本（' + d.current + '）';
       } else {
@@ -4854,15 +4863,22 @@ def _bootstrap_workbench(out_dir):
                 print(f'✅ 已释放内置页面：{name}')
         except Exception as e:
             print(f'⚠️ 释放 {name} 失败: {e}')
-    # KPI 目标值：没有就用示例值起一份（必须按本月考核方案核对后再用）
+    # KPI 目标值：只在「这台机器第一次跑」时用示例值起一份（必须按本月考核方案核对后再用）
+    # .bootstrapped 标记保证「恢复默认」（会删 kpi_targets.json）重启后不会被示例值盖回来
     kt = dst_dir / 'kpi_targets.json'
     ex = dst_dir / 'kpi_targets.example.json'
-    if not kt.exists() and ex.exists():
+    mark = dst_dir / '.bootstrapped'
+    if not mark.exists() and not kt.exists() and ex.exists():
         try:
             shutil.copy2(ex, kt)
             print('✅ 已用示例 KPI 目标值初始化 data/kpi_targets.json（请按本月方案核对）')
         except Exception as e:
             print(f'⚠️ 初始化 kpi_targets.json 失败: {e}')
+    try:
+        if not mark.exists():
+            mark.write_text(time.strftime('%Y-%m-%d %H:%M:%S'), encoding='utf-8')
+    except Exception:
+        pass
 
 
 # ── 夜间静默（2026-10-29 用户定稿）──────────────────────────────────────────
@@ -5007,7 +5023,12 @@ def run(teams, interval=60, out_dir=None, status_cb=None, stop_event=None):
                 _publish_atomic(out_path, out_dir / 'index.html')
             except Exception:
                 pass
-    # 循环退出：关掉本地服务（进程随后由调用方结束）
+    # 循环退出：收掉自己起的调试 Chrome（否则 Ctrl+C 后留一个 ~400MB 僵尸进程）
+    try:
+        cdp_core.cleanup_chrome(True)
+    except Exception as e:
+        print(f'⚠️ 退出时关闭调试浏览器失败: {e}')
+    # 关掉本地服务（进程随后由调用方结束）
     try:
         server.server_close()
     except Exception:
