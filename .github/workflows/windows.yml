@@ -1,0 +1,54 @@
+name: build-windows
+
+# 打 Windows 版：推 tag（win-v*）或手动触发
+on:
+  push:
+    tags:
+      - 'win-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（用作 release tag，如 win-v1.0.0）'
+        required: true
+        default: 'win-v1.0.0'
+
+permissions:
+  contents: write   # 需要创建 release 并上传 zip
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller openpyxl websocket-client
+
+      - name: 打 exe
+        run: |
+          python -m PyInstaller --noconfirm --clean --noconsole `
+            --name "配送运营助手" `
+            --icon "assets\icon.ico" `
+            --add-data "assets;assets" `
+            --hidden-import openpyxl --hidden-import websocket `
+            main.py
+
+      - name: 压缩
+        run: |
+          Compress-Archive -Path "dist\配送运营助手" -DestinationPath "配送运营助手-Windows版.zip" -Force
+          Get-Item "配送运营助手-Windows版.zip" | Format-List Name,Length
+
+      - name: 发布 release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
+          name: 配送运营助手 Windows ${{ github.event.inputs.version || github.ref_name }}
+          fail_on_unmatched_files: true
+          files: 配送运营助手-Windows版.zip

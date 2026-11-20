@@ -765,7 +765,9 @@ def app_base_dir():
     if getattr(sys, 'frozen', False):
         exe = Path(sys.executable).resolve()
         if sys.platform == 'darwin' and 'Contents/MacOS' in str(exe):
-            d = Path.home() / '配送运营助手'
+            # ⚠️ 别用 ~/配送运营助手：那里是本机脚本版的工作目录，打包版写进去会互相覆盖
+            #    （2026-11-20 实测：打包版把本机看板的 index.html 盖成了全商 27 站数据）
+            d = Path.home() / 'Library' / 'Application Support' / '配送运营助手'
             d.mkdir(parents=True, exist_ok=True)
             return d
         return exe.parent
